@@ -1,6 +1,6 @@
 # Stock Index Prediction using Ensemble Learning
  
-A Streamlit web app that predicts the **next-day closing price** of five major global stock indices using five **ensemble learning models**, and evaluates them honestly on data they have never seen, against a naive "tomorrow = today" baseline.
+A Streamlit web app that predicts the **next-day closing price** of five major global stock indices using two **ensemble learning models**, **Random Forest (bagging)** and **XGBoost (boosting)**, and evaluates them honestly on data they have never seen, against a naive "tomorrow = today" baseline.
  
 > **Disclaimer:** This project is for educational and demonstration purposes only. Stock market predictions are inherently uncertain. Do **not** use this app for real financial, investment, or trading decisions. Do your own research or consult a licensed financial advisor.
  
@@ -15,7 +15,7 @@ A Streamlit web app that predicts the **next-day closing price** of five major g
 5. [Running the app](#running-the-app)
 6. [Using the dashboard](#using-the-dashboard)
 7. [Methodology in detail](#methodology-in-detail)
-8. [Models used](#models-used)
+8. [Models used: bagging vs boosting](#models-used-bagging-vs-boosting)
 9. [What was improved from the original version](#what-was-improved-from-the-original-version)
 10. [Relationship to the dissertation report](#relationship-to-the-dissertation-report)
 11. [Limitations](#limitations)
@@ -32,10 +32,12 @@ A Streamlit web app that predicts the **next-day closing price** of five major g
   3. Nikkei 225 (Japan), `^N225`
   4. DAX (Germany), `^GDAXI`
   5. Nifty 50 (India), `^NSEI`
-- **Five ensemble models:** Random Forest, AdaBoost, Gradient Boosting, XGBoost, LightGBM.
+- **Two ensemble models** representing the two main ensemble families:
+  - **Random Forest**: bagging
+  - **XGBoost**: boosting
 - **Honest evaluation:** chronological hold-out window (configurable, 30-120 trading days) with RMSE, MAE, MAPE, accuracy (100 - MAPE) and directional accuracy.
-- **Naive baseline:** every model is compared against "tomorrow's close = today's close". A model that cannot beat it has no real skill.
-- **Model comparison table:** all five models and the baseline side by side for the selected index.
+- **Naive baseline:** both models are compared against "tomorrow's close = today's close". A model that cannot beat it has no real skill.
+- **Bagging vs boosting comparison:** both models and the baseline side by side for the selected index.
 - **Next-day forecast** with an **80% range** derived from the model's own hold-out errors (not an arbitrary +/-1%).
 - **Charts:** 5-year price history, and hold-out actual vs predicted vs naive.
 - **Fast reruns:** downloads and training results are cached.
@@ -48,7 +50,7 @@ Yahoo Finance ──► OHLC prices ──► Scale-free features ──► Chro
                                                           ├── Train (older days)
                                                           └── Hold-out (latest N days)
                                                                     │
-            5 ensemble models trained on Train ──► predict next-day RETURN on Hold-out
+        Random Forest + XGBoost trained on Train ──► predict next-day RETURN on Hold-out
                                                                     │
                           return ──► price ──► RMSE / MAE / MAPE / direction vs naive baseline
                                                                     │
@@ -63,7 +65,8 @@ Yahoo Finance ──► OHLC prices ──► Scale-free features ──► Chro
 .
 ├── Stock_Prediction.py     # Streamlit app (all logic)
 ├── requirements.txt        # Python dependencies
-└── README.md               # This file
+├── README.md               # This file
+└── Project_report.pdf      # M.Tech 3rd semester dissertation report (if included)
 ```
  
 ---
@@ -98,7 +101,7 @@ pip install -r requirements.txt
 streamlit run Stock_Prediction.py
 ```
  
-Open the local URL shown in the terminal (usually `http://localhost:8501`). The first load downloads data and trains all five models, which takes a few seconds. Later interactions are faster thanks to caching.
+Open the local URL shown in the terminal (usually `http://localhost:8501`). The first load downloads data and trains both models, which takes a few seconds. Later interactions are faster thanks to caching.
  
 ---
  
@@ -109,13 +112,13 @@ Open the local URL shown in the terminal (usually `http://localhost:8501`). The 
 | Control | Purpose |
 |---|---|
 | Select index | Which of the five indices to analyse |
-| Select prediction algorithm | Which model's forecast and charts to display |
+| Select prediction algorithm | Random Forest (Bagging) or XGBoost (Boosting): whose forecast and chart to display |
 | Hold-out window | Number of most recent trading days kept aside for testing (30-120) |
  
 **Dashboard sections**
  
 1. **Next-Day Forecast:** last close, predicted close for the next business day (with % change), and the 80% range.
-2. **Model Comparison:** metrics for all five models plus the naive baseline, with a plain-language verdict on whether the selected model beat the baseline.
+2. **Model Comparison: Bagging vs Boosting:** metrics for both models plus the naive baseline, which model had the lower error, and a plain-language verdict on whether the selected model beat the baseline.
 3. **Charts:** 5-year price history, and the hold-out chart (actual vs predicted vs naive).
 4. **Method and limitations:** short expander summarising the approach.
 **Reading the metrics**
@@ -157,17 +160,17 @@ All features are ratios or percentages, so they are comparable across years and 
 - The "next day" is the next business day; exchange holidays are not modelled.
 ---
  
-## Models used
+## Models used: bagging vs boosting
  
-| Model | Idea | Settings |
+| | Random Forest (Bagging) | XGBoost (Boosting) |
 |---|---|---|
-| Random Forest | Many decision trees on random subsets, predictions averaged (bagging) | 100 trees, min leaf size 5 |
-| AdaBoost | Sequentially re-weights hard examples for weak learners | 100 estimators |
-| Gradient Boosting | Trees added one by one to correct previous errors | 100 estimators |
-| XGBoost | Optimised, regularised gradient boosting | 100 trees, depth 3, learning rate 0.05 |
-| LightGBM | Fast gradient boosting with leaf-wise growth and histogram binning | 100 trees, learning rate 0.05 |
+| **Ensemble idea** | Many decision trees trained **independently** on random samples of the data and features; predictions are **averaged** | Trees trained **sequentially**, each one correcting the errors of the previous ones |
+| **Main effect** | Reduces **variance** (less overfitting to noise) | Reduces **bias** (learns complex patterns step by step) |
+| **Strength** | Robust and stable on noisy data like prices | Often more accurate, with built-in regularisation |
+| **Risk** | Can underfit subtle patterns | Can overfit noise if not regularised |
+| **Settings used** | 100 trees, minimum leaf size 5 | 100 trees, depth 3, learning rate 0.05 |
  
-All models use a fixed random seed (42) for reproducibility. No hyperparameter tuning has been done.
+Both use a fixed random seed (42) for reproducibility. No hyperparameter tuning has been done. Which one wins on the hold-out window varies by index and period, and the app reports it directly.
  
 ---
  
@@ -183,17 +186,16 @@ All models use a fixed random seed (42) for reproducibility. No hyperparameter t
 | 6 | Newer `yfinance` MultiIndex columns could break `data['Close']` | Columns flattened |
 | 7 | Prediction range was an arbitrary +/-1% | 80% empirical range from hold-out errors |
 | 8 | "Next day" was current date + 1 calendar day (could be a weekend) | Next business day |
-| 9 | Only 2 models in the app, while the report covers 5 | Added AdaBoost, Gradient Boosting and LightGBM |
-| 10 | No baseline to judge model quality | Naive baseline and a verdict message |
-| 11 | Data was re-downloaded and models retrained on every click | Caching with `st.cache_data` |
-| 12 | Personal phone number and email were hard-coded in the page footer, with malformed HTML | Footer shows name and disclaimer only |
-| 13 | Unpinned requirements, no `lightgbm` | Minimum versions pinned, `lightgbm` added |
+| 9 | No baseline to judge model quality | Naive baseline and a verdict message |
+| 10 | Data was re-downloaded and models retrained on every click | Caching with `st.cache_data` |
+| 11 | Footer HTML had an unclosed tag (`<center>---<center>`) | Tag closed |
+| 12 | Unpinned requirements | Minimum versions specified |
  
 ---
  
 ## Relationship to the dissertation report
  
-This app is the Streamlit successor to the Tkinter application described in the M.Tech 3rd semester report *"Predictive Analytics of Stock Prices Using Ensemble Learning Techniques"* (December 2024). The accuracy figures in that report came from the earlier evaluation setup (raw-price target, date-based features) and are **not directly comparable** with the hold-out metrics shown by this app.
+This app is the Streamlit successor to the Tkinter application described in the M.Tech 3rd semester report *"Predictive Analytics of Stock Prices Using Ensemble Learning Techniques"* (December 2024). The report covers five ensemble algorithms (Random Forest, AdaBoost, Gradient Boosting, XGBoost, LightGBM); this app focuses on the two that represent the bagging and boosting families. The accuracy figures in the report came from the earlier evaluation setup (raw-price target, date-based features) and are **not directly comparable** with the hold-out metrics shown by this app.
  
 ---
  
@@ -213,10 +215,10 @@ This app is the Streamlit successor to the Tkinter application described in the 
 | Problem | Solution |
 |---|---|
 | "Could not download data" | Yahoo Finance may be rate-limiting or temporarily down; wait and retry, and upgrade with `pip install -U yfinance` |
-| `ModuleNotFoundError: lightgbm` / `xgboost` | Run `pip install -r requirements.txt` inside your virtual environment |
-| LightGBM or XGBoost fails to import on macOS | Install OpenMP: `brew install libomp` |
+| `ModuleNotFoundError: xgboost` | Run `pip install -r requirements.txt` inside your virtual environment |
+| XGBoost fails to import on macOS | Install OpenMP: `brew install libomp` |
 | "Not enough price history" | Reduce the hold-out window in the sidebar |
-| First run is slow | All five models are trained once; results are then cached |
+| First run is slow | Both models are trained once per index and window; results are then cached |
 | Stale data | Cached data refreshes hourly; use Streamlit's menu (Rerun / Clear cache) to force a refresh |
  
 ---
@@ -226,7 +228,7 @@ This app is the Streamlit successor to the Tkinter application described in the 
 - Walk-forward (rolling-origin) cross-validation across many windows.
 - Hyperparameter tuning (e.g. Optuna) with time-series-aware validation.
 - More features: volume, RSI/MACD, volatility indices, macro indicators, news sentiment.
-- Stacking or blending of the five models.
+- Additional ensemble members (AdaBoost, Gradient Boosting, LightGBM) and stacking or blending.
 - Deep learning baselines (LSTM, temporal CNN) for comparison.
 - Exchange-calendar-aware dates and multi-day forecasts with prediction intervals.
 - Dockerfile and CI for reproducible deployment.
@@ -234,5 +236,11 @@ This app is the Streamlit successor to the Tkinter application described in the 
  
 ## Tech stack
  
-Python, Streamlit, yfinance, pandas, NumPy, scikit-learn, XGBoost, LightGBM, Matplotlib.
+Python, Streamlit, yfinance, pandas, NumPy, scikit-learn (Random Forest), XGBoost, Matplotlib.
+ 
+---
+ 
+## Author
+ 
+Dishant Vaidya
  
